@@ -1,0 +1,97 @@
+Description:  security for simpleWebapp 
+Metadata:
+  "AWS::CloudFormation::Interface":
+    ParameterGroups:
+      - Label:
+          default: "all resource name prefix"
+        Parameters:
+          - EnvironmentName
+      - Label:
+          default: "RDS Configuration"
+        Parameters:
+          - ClientKeyName
+          - MySQLMajorVersion
+          - MySQLMinorVersion
+          - DBInstanceClass
+          - DBPassword
+Parameters:
+    EnvironmentName:
+      Description: all resource name next prefix
+      Type: String
+      Default: trust-archi
+    ClientKeyName:
+      Type: String
+      Default: "validateAWS"
+    MySQLMajorVersion:
+      Type: String
+      Default: "8.0"
+      AllowedValues: [ "8.0", "5.7" ]
+    MySQLMinorVersion:
+      Type: String
+      Default: "34"
+      AllowedValues: [ "34", "43" ]
+    DBInstanceClass:
+      Type: String
+      Default: "db.t4g.micro" 
+      AllowedValues: ["db.t4g.micro" ,"db.t3.micro","db.t2.micro"]
+    DBPassword: 
+      Default: "Passw0rd"
+      NoEcho: true
+      Type: String
+      MinLength: 8
+      MaxLength: 41
+      AllowedPattern: "[a-zA-Z0-9]*"
+      ConstraintDescription: "must contain only alphanumeric characters."    
+Resources: 
+  DBSubnetGroup: 
+    Type: "AWS::RDS::DBSubnetGroup"
+    Properties: 
+      DBSubnetGroupName: !Sub "db-subnet-group-${EnvironmentName}"
+      DBSubnetGroupDescription: "-"
+      SubnetIds: 
+        - !ImportValue PvSubnet1-ID
+        - !ImportValue PvSubnet2-ID
+  DBInstance: 
+    Type: "AWS::RDS::DBInstance"
+    Properties: 
+      DBInstanceIdentifier: !Sub "rds-${EnvironmentName}"
+      Engine: MySQL
+      EngineVersion: !Sub "${MySQLMajorVersion}.${MySQLMinorVersion}"
+      DBInstanceClass: !Ref DBInstanceClass
+      AllocatedStorage: "20"
+      StorageType: "gp2"
+      DBName: testdb
+      MasterUsername: valaws
+      MasterUserPassword: !Ref DBPassword
+      DBSubnetGroupName: !Ref DBSubnetGroup
+      PubliclyAccessible: false
+      MultiAZ: "false"
+      PreferredBackupWindow: "18:00-18:30"
+      PreferredMaintenanceWindow: "sat:19:00-sat:19:30"
+      AutoMinorVersionUpgrade: false
+      VPCSecurityGroups:
+        - !ImportValue  SecurityGroupRDS-ID
+      CopyTagsToSnapshot: true
+      BackupRetentionPeriod: 7
+      Tags: 
+        - Key: "Name"
+          Value: !Sub "rds-${EnvironmentName}"
+    DeletionPolicy: "Delete"
+  DBClient:
+    Type: "AWS::EC2::Instance"
+    Properties:
+      ImageId: "ami-079cd5448deeace01"
+      SubnetId: !ImportValue PublicSubnet1-ID
+      InstanceType: "t2.micro"
+      KeyName: !Ref ClientKeyName
+      SecurityGroupIds:
+        - !ImportValue SecurityGroupDataBaseClient-ID
+      UserData:
+        Fn::Base64: |
+          #!/bin/bash
+          sudo dnf update -y
+          sudo dnf install -y mariadb105
+      Tags:
+        - Key: Name
+          Value: !Sub ec2-${EnvironmentName}
+          

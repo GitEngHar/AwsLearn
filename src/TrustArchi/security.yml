@@ -1,0 +1,45 @@
+Description:  security for simpleWebapp 
+Parameters:
+    EnvironmentName:
+      Description: all resource name next prefix
+      Type: String
+      Default: trust-archi
+Resources:
+  # セキュリティグループの作成
+  SgDbClient:
+    Type: AWS::EC2::SecurityGroup
+    Properties: 
+      GroupDescription: the sg for ec2
+      GroupName: !Sub ${EnvironmentName}-db-client-sg
+      SecurityGroupIngress: 
+        - IpProtocol: tcp
+          FromPort: 0
+          ToPort: 65535
+          CidrIp: 0.0.0.0/0
+      Tags: 
+        - Key: Name
+          Value: !Sub ${EnvironmentName}-db-client-sg
+      VpcId: !ImportValue Vpc-ID
+  SgRds:
+    Type: AWS::EC2::SecurityGroup
+    Properties: 
+      GroupDescription: the sg for db
+      GroupName: !Sub ${EnvironmentName}-rds-sg
+      SecurityGroupIngress: 
+        - IpProtocol: tcp
+          FromPort: 3306
+          ToPort: 3306
+          SourceSecurityGroupId: !Ref SgDbClient
+      Tags: 
+        - Key: Name
+          Value: !Sub ${EnvironmentName}-rds-sg
+      VpcId: !ImportValue Vpc-ID
+Outputs:
+  SecurityGroupFrontALB:
+    Value: !Ref SgDbClient
+    Export:
+      Name: SecurityGroupDataBaseClient-ID
+  SecurityGroupFrontService:
+    Value: !Ref SgRds
+    Export:
+      Name: SecurityGroupRDS-ID
